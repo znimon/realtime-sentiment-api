@@ -127,11 +127,13 @@ curl -s -X POST http://localhost:8000/batch_predict \
 ## Development
 
 ### Project Structure
+```
 src/
   api/               # FastAPI application code
   model/             # ML model implementation
   services/          # Business logic
   monitoring/        # Metrics collection
+```
 
 ### Rebuild
 
