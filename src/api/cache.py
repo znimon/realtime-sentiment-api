@@ -27,7 +27,7 @@ class SentimentCache:
 
     async def connect(self) -> bool:
         """Connect to Redis.
-        
+
         Returns:
             bool: True if connection succeeded, False otherwise
         """
@@ -39,7 +39,7 @@ class SentimentCache:
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                retry_on_error=True
+                retry_on_error=True,
             )
             logger.debug("Redis client created successfully")
 
@@ -62,6 +62,7 @@ class SentimentCache:
             logger.error(f"Unexpected error connecting to Redis: {str(e)}")
             logger.error(f"Error type: {type(e)}")
             import traceback
+
             logger.error(f"Traceback: {traceback.format_exc()}")
             self.connected = False
             return False
@@ -78,16 +79,16 @@ class SentimentCache:
 
     def _generate_cache_key(self, text: str) -> str:
         """Generate a consistent cache key for the given text."""
-        text_hash = hashlib.sha256(text.encode('utf-8')).hexdigest()
+        text_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
         return f"sentiment:{text_hash}"
 
     async def get(self, text: str) -> dict[str, Any] | None:
         """
         Get cached sentiment result for text.
-        
+
         Args:
             text: Input text to check cache for
-            
+
         Returns:
             Cached sentiment result or None if not found
         """
@@ -117,11 +118,11 @@ class SentimentCache:
     async def set(self, text: str, result: dict[str, Any]) -> bool:
         """
         Cache sentiment result for text.
-        
+
         Args:
             text: Input text
             result: Sentiment analysis result to cache
-            
+
         Returns:
             True if successfully cached, False otherwise
         """
@@ -133,13 +134,11 @@ class SentimentCache:
             cached_result = {
                 **result,
                 "cached_at": datetime.utcnow().isoformat(),
-                "text": text  # Store original text for debugging
+                "text": text,  # Store original text for debugging
             }
 
             await self.redis.setex(
-                cache_key,
-                self.ttl,
-                json.dumps(cached_result, ensure_ascii=False)
+                cache_key, self.ttl, json.dumps(cached_result, ensure_ascii=False)
             )
             logger.debug(f"Cached result for key: {cache_key}")
             return True
@@ -151,10 +150,10 @@ class SentimentCache:
     async def get_batch(self, texts: list[str]) -> dict[str, dict[str, Any] | None]:
         """
         Get cached sentiment results for multiple texts.
-        
+
         Args:
             texts: List of input texts
-            
+
         Returns:
             Dictionary mapping text to cached result (or None if not cached)
         """
@@ -186,38 +185,22 @@ class SentimentCache:
     async def set_batch(self, text_results: dict[str, dict[str, Any]]) -> int:
         """
         Cache multiple sentiment results.
-        
         Args:
             text_results: Dictionary mapping text to sentiment result
-            
         Returns:
             Number of successfully cached results
         """
         if not self.connected or not self.redis:
             return 0
-
         try:
-            pipeline = self.redis.pipeline()
-            now = datetime.utcnow().isoformat()
-
+            pipe = self.redis.pipeline()
+            now = datetime.now(datetime.timezone.utc)
             for text, result in text_results.items():
-                cache_key = self._generate_cache_key(text)
-                cached_result = {
-                    **result,
-                    "cached_at": now,
-                    "text": text
-                }
-                pipeline.setex(
-                    cache_key,
-                    self.ttl,
-                    json.dumps(cached_result, ensure_ascii=False)
-                )
-
-            await pipeline.execute()
-            count = len(text_results)
-            logger.debug(f"Cached {count} results in batch")
-            return count
-
+                key = self._generate_cache_key(text)
+                payload = {**result, "cached_at": now, "text": text}
+                pipe.setex(key, self.ttl, json.dumps(payload, ensure_ascii=False))
+            await pipe.execute()
+            return len(text_results)
         except RedisError as e:
             logger.error(f"Redis error setting batch cache: {str(e)}")
             return 0
@@ -225,30 +208,19 @@ class SentimentCache:
     async def health_check(self) -> dict[str, Any]:
         """
         Check if cache is healthy.
-        
         Returns:
             Dictionary with health status and details
         """
-        status = {
-            "connected": False,
-            "error": "Not initialized"
-        }
+        status = {"connected": False, "error": "Not initialized"}
 
         if not self.redis:
             return status
 
         try:
             await self.redis.ping()
-            status.update({
-                "connected": True,
-                "error": None,
-                "status": "ok"
-            })
+            status.update({"connected": True, "error": None, "status": "ok"})
         except RedisError as e:
-            status.update({
-                "error": str(e),
-                "status": "unavailable"
-            })
+            status.update({"error": str(e), "status": "unavailable"})
             logger.error(f"Redis health check failed: {str(e)}")
 
         return status
@@ -256,7 +228,7 @@ class SentimentCache:
     async def get_stats(self) -> dict[str, Any]:
         """
         Get cache statistics.
-        
+
         Returns:
             Dictionary with cache statistics
         """
@@ -264,15 +236,15 @@ class SentimentCache:
             return {"connected": False}
 
         try:
-            info = await self.redis.info('memory')
-            keys = await self.redis.keys('sentiment:*')
+            info = await self.redis.info("memory")
+            keys = await self.redis.keys("sentiment:*")
 
             return {
                 "connected": True,
                 "keys": len(keys),
-                "memory_used": info.get('used_memory', 0),
-                "memory_used_human": info.get('used_memory_human', '0B'),
-                "ttl_seconds": self.ttl
+                "memory_used": info.get("used_memory", 0),
+                "memory_used_human": info.get("used_memory_human", "0B"),
+                "ttl_seconds": self.ttl,
             }
         except RedisError as e:
             logger.error(f"Error getting Redis stats: {str(e)}")
@@ -281,10 +253,10 @@ class SentimentCache:
     async def delete(self, text: str) -> bool:
         """
         Delete a cached entry.
-        
+
         Args:
             text: Text to delete from cache
-            
+
         Returns:
             True if deleted, False otherwise
         """
@@ -301,10 +273,10 @@ class SentimentCache:
     async def clear_namespace(self, namespace: str = "sentiment:*") -> int:
         """
         Clear all keys in the given namespace.
-        
+
         Args:
             namespace: Redis key pattern to clear
-            
+
         Returns:
             Number of keys deleted
         """

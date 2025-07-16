@@ -38,7 +38,7 @@ Real-time API for sentiment analysis, built with FastAPI and Redis.
 
 ### Installation
 1. Clone the repository:
-git clone https://github.com/yourusername/sentiment-analysis-api.git
+git clone https://github.com/znimon/sentiment-analysis-api.git
 cd sentiment-analysis-api
 
 2. Start all services:
@@ -79,12 +79,12 @@ Content-Type: application/json
 ## Configuration
 
 ### Environment Variables
-| Variable        | Default Value                     | Description                |
-|-----------------|-----------------------------------|----------------------------|
-| REDIS_URL       | redis://redis:6379               | Redis connection URL       |
-| MODEL_NAME      | cardiffnlp/twitter-roberta-base  | HuggingFace model name     |
-| BATCH_SIZE      | 32                               | Batch processing size      |
-| CACHE_TTL       | 3600                             | Cache duration in seconds  |
+| Variable        | Default Value                                      | Description                |
+|-----------------|----------------------------------------------------|----------------------------|
+| REDIS_URL       | redis://redis:6379                                 | Redis connection URL       |
+| MODEL_NAME      | cardiffnlp/twitter-roberta-base-sentiment-latest   | HuggingFace model name     |
+| BATCH_SIZE      | 32                                                 | Batch processing size      |
+| CACHE_TTL       | 3600                                               | Cache duration in seconds  |
 
 ## Monitoring
 
@@ -117,9 +117,13 @@ src/
   services/          # Business logic
   monitoring/       # Metrics collection
 
+### Rebuild
+
+docker-compose down && docker-compose build --no-cache sentiment-api && docker-compose up -d
+
 ### Running Tests
-pytest tests/unit/       # Unit tests
-pytest tests/integration # Integration tests
+pytest tests/unit/       # Unit tests  
+pytest tests/integration # Integration tests  
 
 ## Deployment
 
