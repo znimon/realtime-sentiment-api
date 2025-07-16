@@ -1,8 +1,8 @@
 # Real-time Sentiment Analysis API
 
-![Architecture Diagram](docs/assets/images/architecture.png)
-
 Real-time API for sentiment analysis, built with FastAPI and Redis.
+
+<img src="docs/assets/images/architecture.png" alt="Architecture Diagram" width="500">
 
 ## Table of Contents
 - [Features](#features)
@@ -10,10 +10,7 @@ Real-time API for sentiment analysis, built with FastAPI and Redis.
 - [API Documentation](#api-documentation)
 - [Configuration](#configuration)
 - [Monitoring](#monitoring)
-- [Performance](#performance)
 - [Development](#development)
-- [Deployment](#deployment)
-- [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -37,15 +34,14 @@ Real-time API for sentiment analysis, built with FastAPI and Redis.
 - Docker Compose 2.4+
 
 ### Installation
-1. Clone the repository:
-git clone https://github.com/znimon/sentiment-analysis-api.git
-cd sentiment-analysis-api
+1. Clone the repository:  
+`git clone https://github.com/znimon/sentiment-analysis-api.git`
 
-2. Start all services:
-docker compose up -d --build
+2. Start all services:  
+`docker compose up -d --build`
 
-3. Verify installation:
-curl http://localhost:8000/health
+3. Verify installation:  
+`curl http://localhost:8000/health`
 
 ## API Documentation
 
@@ -53,28 +49,57 @@ curl http://localhost:8000/health
 
 | Endpoint          | Method | Description                     |
 |-------------------|--------|---------------------------------|
-| /predict         | POST   | Single text prediction          |
-| /batch_predict   | POST   | Batch predictions               |
-| /health          | GET    | System health status            |
-| /metrics         | GET    | Prometheus metrics              |
-| /docs            | GET    | Interactive API documentation   |
+| /predict         | POST    | Single text prediction          |
+| /batch_predict   | POST    | Batch predictions               |
+| /health          | GET     | System health status            |
+| /metrics         | GET     | Prometheus metrics              |
+| /docs            | GET     | Interactive API documentation   |
 
 ### Sample Request
-POST /predict
-Content-Type: application/json
-
-{
-  "text": "I really enjoy using this product"
-}
+```
+curl -s -X POST http://localhost:8000/batch_predict \                                       
+  -H 'Content-Type: application/json' \
+  -d '{"texts": ["Great!", "This is awful", "Meh"]}' | jq
+```
 
 ### Sample Response
+```
 {
-  "text": "I really enjoy using this product",
-  "sentiment": "POSITIVE",
-  "confidence": 0.92,
-  "processing_time_ms": 45,
-  "cached": false
+  "results": [
+    {
+      "text": "Great!",
+      "label": "positive",
+      "score": 0.9382080435752869,
+      "confidence": 0.9382080435752869,
+      "processing_time": 0.0,
+      "cached": false,
+      "request_id": ""
+    },
+    {
+      "text": "This is awful",
+      "label": "negative",
+      "score": 0.8533598780632019,
+      "confidence": 0.8533598780632019,
+      "processing_time": 0.0,
+      "cached": false,
+      "request_id": ""
+    },
+    {
+      "text": "Meh",
+      "label": "neutral",
+      "score": 0.6232547163963318,
+      "confidence": 0.6232547163963318,
+      "processing_time": 0.0,
+      "cached": false,
+      "request_id": ""
+    }
+  ],
+  "total_count": 3,
+  "processing_time": 0.6446430683135986,
+  "cached_count": 0,
+  "request_id": ""
 }
+```
 
 ## Configuration
 
@@ -99,15 +124,6 @@ Content-Type: application/json
    - Service status
    - Uptime monitoring
 
-## Performance
-
-### Benchmark Results
-| Test Scenario       | Throughput | P95 Latency | Cache Hit Rate |
-|---------------------|------------|-------------|----------------|
-| Single (cached)     | 1200 req/s | 15ms        | 100%           |
-| Single (uncached)   | 200 req/s  | 450ms       | 0%             |
-| Batch (10 items)    | 80 req/s   | 600ms       | 40%            |
-
 ## Development
 
 ### Project Structure
@@ -115,39 +131,18 @@ src/
   api/               # FastAPI application code
   model/             # ML model implementation
   services/          # Business logic
-  monitoring/       # Metrics collection
+  monitoring/        # Metrics collection
 
 ### Rebuild
 
-docker-compose down && docker-compose build --no-cache sentiment-api && docker-compose up -d
+`docker-compose down && docker-compose build --no-cache sentiment-api && docker-compose up -d`
 
 ### Running Tests
+```
 pytest tests/unit/       # Unit tests  
 pytest tests/integration # Integration tests  
-
-## Deployment
-
-### Production Checklist
-- Configure TLS termination
-- Set resource limits in Docker
-- Enable log rotation
-- Configure alert thresholds
-- Set up backup for Redis data
-
-### Kubernetes Example
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: sentiment-api
-spec:
-  replicas: 3
-  template:
-    spec:
-      containers:
-      - name: api
-        image: your-registry/sentiment-api:1.0.0
-        ports:
-        - containerPort: 8000
+pytest tests             # All tests  
+```
 
 ## Contributing
 
