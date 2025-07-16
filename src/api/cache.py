@@ -39,7 +39,7 @@ class SentimentCache:
                 decode_responses=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                retry_on_error=True,
+                retry_on_error=[],
             )
             logger.debug("Redis client created successfully")
 
