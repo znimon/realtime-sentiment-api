@@ -19,24 +19,25 @@ def client():
 @pytest.fixture
 def mock_components():
     """Mock application components."""
-    with patch('src.api.main.sentiment_analyzer') as mock_analyzer, \
-         patch('src.api.main.cache') as mock_cache, \
-         patch('src.api.main.metrics_collector') as mock_metrics:
-
+    with (
+        patch("src.api.main.sentiment_analyzer") as mock_analyzer,
+        patch("src.api.main.cache") as mock_cache,
+        patch("src.api.main.metrics_collector") as mock_metrics,
+    ):
         # Setup mock analyzer
         mock_analyzer.predict.return_value = {
             "label": "POSITIVE",
             "score": 0.85,
-            "confidence": 0.85
+            "confidence": 0.85,
         }
         mock_analyzer.predict_batch.return_value = [
             {"label": "POSITIVE", "score": 0.85, "confidence": 0.85},
-            {"label": "NEGATIVE", "score": 0.90, "confidence": 0.90}
+            {"label": "NEGATIVE", "score": 0.90, "confidence": 0.90},
         ]
         mock_analyzer.model_name = "test_model"
         mock_analyzer.device = "cpu"
 
-        # Setup mock cache - make async methods return coroutines
+        # Setup mock cache make async methods return coroutines
         mock_cache.connected = True
 
         async def mock_get(key):
@@ -55,11 +56,7 @@ def mock_components():
             return {"connected": True}
 
         async def mock_get_stats():
-            return {
-                "connected": True,
-                "total_keys": 0,
-                "sentiment_keys": 0
-            }
+            return {"connected": True, "total_keys": 0, "sentiment_keys": 0}
 
         mock_cache.get = mock_get
         mock_cache.set = mock_set
@@ -73,7 +70,7 @@ def mock_components():
             "requests": {"total": 0, "errors": 0},
             "performance": {"avg_request_duration": 0.0},
             "cache": {"hits": 0, "misses": 0, "hit_ratio": 0.0},
-            "system": {"uptime": 0.0}
+            "system": {"uptime": 0.0},
         }
         mock_metrics.record_request_duration.return_value = None
         mock_metrics.increment_prediction_count.return_value = None
@@ -82,11 +79,7 @@ def mock_components():
         mock_metrics.increment_cache_miss_count.return_value = None
         mock_metrics.record_model_latency.return_value = None
 
-        yield {
-            "analyzer": mock_analyzer,
-            "cache": mock_cache,
-            "metrics": mock_metrics
-        }
+        yield {"analyzer": mock_analyzer, "cache": mock_cache, "metrics": mock_metrics}
 
 
 class TestRootEndpoint:
@@ -110,9 +103,10 @@ class TestHealthEndpoint:
 
     def test_health_check(self, client, mock_components):
         """Test health check endpoint."""
-        with patch('src.api.main.app_start_time', 1000.0), \
-             patch('time.time', return_value=1100.0):
-
+        with (
+            patch("src.api.main.app_start_time", 1000.0),
+            patch("time.time", return_value=1100.0),
+        ):
             response = client.get("/health")
             assert response.status_code == 200
 
@@ -145,7 +139,9 @@ class TestPredictEndpoint:
         assert "cached" in data
 
         # Verify mock calls
-        mock_components["analyzer"].predict.assert_called_once_with("I love this product!")
+        mock_components["analyzer"].predict.assert_called_once_with(
+            "I love this product!"
+        )
         mock_components["metrics"].record_request_duration.assert_called_once()
         mock_components["metrics"].increment_prediction_count.assert_called_once()
 
@@ -166,11 +162,7 @@ class TestPredictEndpoint:
     def test_predict_cached_result(self, client, mock_components):
         """Test prediction with cached result."""
         # Setup cache to return result
-        cached_result = {
-            "label": "POSITIVE",
-            "score": 0.85,
-            "confidence": 0.85
-        }
+        cached_result = {"label": "POSITIVE", "score": 0.85, "confidence": 0.85}
 
         async def mock_get_cached(key):
             return cached_result
@@ -195,9 +187,7 @@ class TestBatchPredictEndpoint:
 
     def test_batch_predict_success(self, client, mock_components):
         """Test successful batch prediction."""
-        request_data = {
-            "texts": ["I love this!", "I hate this!"]
-        }
+        request_data = {"texts": ["I love this!", "I hate this!"]}
 
         response = client.post("/batch_predict", json=request_data)
         assert response.status_code == 200
@@ -234,12 +224,8 @@ class TestBatchPredictEndpoint:
         """Test batch prediction with some cached results."""
         # Setup cache to return some results
         cached_results = {
-            "I love this!": {
-                "label": "POSITIVE",
-                "score": 0.85,
-                "confidence": 0.85
-            },
-            "I hate this!": None
+            "I love this!": {"label": "POSITIVE", "score": 0.85, "confidence": 0.85},
+            "I hate this!": None,
         }
 
         async def mock_get_batch_cached(keys):
@@ -247,9 +233,7 @@ class TestBatchPredictEndpoint:
 
         mock_components["cache"].get_batch = mock_get_batch_cached
 
-        request_data = {
-            "texts": ["I love this!", "I hate this!"]
-        }
+        request_data = {"texts": ["I love this!", "I hate this!"]}
 
         response = client.post("/batch_predict", json=request_data)
         assert response.status_code == 200
@@ -278,4 +262,3 @@ class TestMetricsEndpoint:
 
         # Verify mock calls
         mock_components["metrics"].get_metrics.assert_called_once()
-        # Note: cache.get_stats is an async function, so we don't check assert_called_once

@@ -10,12 +10,15 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipe
 
 logger = logging.getLogger(__name__)
 
+
 class SentimentAnalyzer:
     """
     Sentiment analyzer using cardiffnlp/twitter-roberta-base-sentiment-latest model.
     """
 
-    def __init__(self, model_name: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"):
+    def __init__(
+        self, model_name: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+    ):
         self.model_name = model_name
         self.tokenizer = None
         self.model = None
@@ -27,9 +30,10 @@ class SentimentAnalyzer:
         try:
             logger.info(f"Loading model: {self.model_name}")
 
-            # Load tokenizer and model
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
+            self.model = AutoModelForSequenceClassification.from_pretrained(
+                self.model_name
+            )
 
             # Move model to device
             self.model.to(self.device)
@@ -40,7 +44,7 @@ class SentimentAnalyzer:
                 "sentiment-analysis",
                 model=self.model,
                 tokenizer=self.tokenizer,
-                device=0 if self.device.type == "cuda" else -1
+                device=0 if self.device.type == "cuda" else -1,
             )
 
             logger.info(f"Model loaded successfully on {self.device}")
@@ -52,10 +56,10 @@ class SentimentAnalyzer:
     def predict(self, text: str) -> dict[str, float]:
         """
         Predict sentiment for a single text.
-        
+
         Args:
             text: Input text to analyze
-            
+
         Returns:
             Dictionary with sentiment scores
         """
@@ -69,15 +73,14 @@ class SentimentAnalyzer:
             # Get prediction
             result = self.pipeline(text.strip())
 
-            # Extract label and score
             label = result[0]["label"]
             score = result[0]["score"]
 
-            # Map labels to standardized format
+            # Map labels
             label_mapping = {
                 "LABEL_0": "NEGATIVE",
                 "LABEL_1": "NEUTRAL",
-                "LABEL_2": "POSITIVE"
+                "LABEL_2": "POSITIVE",
             }
 
             standardized_label = label_mapping.get(label, label)
@@ -85,7 +88,7 @@ class SentimentAnalyzer:
             return {
                 "label": standardized_label,
                 "score": float(score),
-                "confidence": float(score)
+                "confidence": float(score),
             }
 
         except Exception as e:
@@ -95,10 +98,10 @@ class SentimentAnalyzer:
     def predict_batch(self, texts: list[str]) -> list[dict[str, float]]:
         """
         Predict sentiment for multiple texts.
-        
+
         Args:
             texts: List of texts to analyze
-            
+
         Returns:
             List of dictionaries with sentiment scores
         """
@@ -128,16 +131,18 @@ class SentimentAnalyzer:
                 label_mapping = {
                     "LABEL_0": "NEGATIVE",
                     "LABEL_1": "NEUTRAL",
-                    "LABEL_2": "POSITIVE"
+                    "LABEL_2": "POSITIVE",
                 }
 
                 standardized_label = label_mapping.get(label, label)
 
-                predictions.append({
-                    "label": standardized_label,
-                    "score": float(score),
-                    "confidence": float(score)
-                })
+                predictions.append(
+                    {
+                        "label": standardized_label,
+                        "score": float(score),
+                        "confidence": float(score),
+                    }
+                )
 
             return predictions
 
@@ -151,7 +156,7 @@ class SentimentAnalyzer:
             "model_name": self.model_name,
             "device": str(self.device),
             "tokenizer_vocab_size": len(self.tokenizer.vocab) if self.tokenizer else 0,
-            "model_loaded": self.model is not None
+            "model_loaded": self.model is not None,
         }
 
 
@@ -172,19 +177,18 @@ class ModelManager:
             "name": name,
             "version": version,
             "path": model_path,
-            "registered_at": torch.utils.data.get_worker_info()
+            "registered_at": torch.utils.data.get_worker_info(),
         }
 
     def load_model(self, name: str, version: str = "latest") -> SentimentAnalyzer:
         """Load a specific model version."""
         if version == "latest":
-            # Use the pre-trained model
             analyzer = SentimentAnalyzer()
             analyzer.load_model()
             self.current_model = analyzer
             return analyzer
         else:
-            # Load from registry (for future fine-tuned models)
+            # Load from registry for fine-tuned models
             model_key = f"{name}:{version}"
             if model_key in self.model_registry:
                 model_info = self.model_registry[model_key]

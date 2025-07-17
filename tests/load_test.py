@@ -14,6 +14,7 @@ import aiohttp
 @dataclass
 class LoadTestResult:
     """Load test result data structure."""
+
     duration: float
     status_code: int
     success: bool
@@ -43,17 +44,13 @@ class LoadTester:
 
         try:
             async with self.session.post(
-                f"{self.base_url}/predict",
-                json={"text": text},
-                timeout=30
+                f"{self.base_url}/predict", json={"text": text}, timeout=30
             ) as response:
                 duration = time.time() - start_time
 
                 if response.status == 200:
                     return LoadTestResult(
-                        duration=duration,
-                        status_code=response.status,
-                        success=True
+                        duration=duration, status_code=response.status, success=True
                     )
                 else:
                     text = await response.text()
@@ -61,16 +58,13 @@ class LoadTester:
                         duration=duration,
                         status_code=response.status,
                         success=False,
-                        error=f"HTTP {response.status}: {text}"
+                        error=f"HTTP {response.status}: {text}",
                     )
 
         except Exception as e:
             duration = time.time() - start_time
             return LoadTestResult(
-                duration=duration,
-                status_code=0,
-                success=False,
-                error=str(e)
+                duration=duration, status_code=0, success=False, error=str(e)
             )
 
     async def batch_request(self, texts: list[str]) -> LoadTestResult:
@@ -79,17 +73,13 @@ class LoadTester:
 
         try:
             async with self.session.post(
-                f"{self.base_url}/batch_predict",
-                json={"texts": texts},
-                timeout=60
+                f"{self.base_url}/batch_predict", json={"texts": texts}, timeout=60
             ) as response:
                 duration = time.time() - start_time
 
                 if response.status == 200:
                     return LoadTestResult(
-                        duration=duration,
-                        status_code=response.status,
-                        success=True
+                        duration=duration, status_code=response.status, success=True
                     )
                 else:
                     text = await response.text()
@@ -97,23 +87,17 @@ class LoadTester:
                         duration=duration,
                         status_code=response.status,
                         success=False,
-                        error=f"HTTP {response.status}: {text}"
+                        error=f"HTTP {response.status}: {text}",
                     )
 
         except Exception as e:
             duration = time.time() - start_time
             return LoadTestResult(
-                duration=duration,
-                status_code=0,
-                success=False,
-                error=str(e)
+                duration=duration, status_code=0, success=False, error=str(e)
             )
 
     async def run_concurrent_test(
-        self,
-        text: str,
-        num_requests: int = 100,
-        concurrency: int = 10
+        self, text: str, num_requests: int = 100, concurrency: int = 10
     ) -> list[LoadTestResult]:
         """Run concurrent requests test."""
         print(f"Running {num_requests} requests with concurrency {concurrency}")
@@ -130,10 +114,7 @@ class LoadTester:
         return results
 
     async def run_batch_test(
-        self,
-        texts: list[str],
-        num_requests: int = 50,
-        concurrency: int = 5
+        self, texts: list[str], num_requests: int = 50, concurrency: int = 5
     ) -> list[LoadTestResult]:
         """Run batch requests test."""
         print(f"Running {num_requests} batch requests with concurrency {concurrency}")
@@ -160,7 +141,7 @@ class LoadTester:
                 "successful_requests": 0,
                 "failed_requests": len(failed_results),
                 "success_rate": 0.0,
-                "error": "No successful requests"
+                "error": "No successful requests",
             }
 
         durations = [r.duration for r in successful_results]
@@ -175,9 +156,9 @@ class LoadTester:
                 "median": median(durations),
                 "min": min(durations),
                 "max": max(durations),
-                "std_dev": stdev(durations) if len(durations) > 1 else 0
+                "std_dev": stdev(durations) if len(durations) > 1 else 0,
             },
-            "throughput": len(successful_results) / sum(durations) if durations else 0
+            "throughput": len(successful_results) / sum(durations) if durations else 0,
         }
 
         if failed_results:
@@ -226,7 +207,7 @@ async def main():
         "Not bad, but could be better.",
         "Outstanding quality and service!",
         "Disappointing and overpriced.",
-        "Exactly what I expected."
+        "Exactly what I expected.",
     ]
 
     batch_texts = test_texts[:5]  # Smaller batch for testing
@@ -235,9 +216,7 @@ async def main():
         # Test 1: Single request load test
         print("Testing single requests...")
         single_results = await tester.run_concurrent_test(
-            text=test_texts[0],
-            num_requests=100,
-            concurrency=10
+            text=test_texts[0], num_requests=100, concurrency=10
         )
 
         single_analysis = tester.analyze_results(single_results)
@@ -246,9 +225,7 @@ async def main():
         # Test 2: Batch request load test
         print("\nTesting batch requests...")
         batch_results = await tester.run_batch_test(
-            texts=batch_texts,
-            num_requests=50,
-            concurrency=5
+            texts=batch_texts, num_requests=50, concurrency=5
         )
 
         batch_analysis = tester.analyze_results(batch_results)

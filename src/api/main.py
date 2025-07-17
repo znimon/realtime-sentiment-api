@@ -30,45 +30,43 @@ from src.monitoring.metrics import MetricsCollector
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# Global variables for app components
 model_manager: ModelManager | None = None
 sentiment_analyzer: SentimentAnalyzer | None = None
 cache: SentimentCache | None = None
 metrics_collector: MetricsCollector | None = None
 app_start_time: float = 0
 
-# Rate limiting storage
 _rate_limit_storage: dict[str, dict[str, Any]] = {}
 
+
 async def check_rate_limit(request: Request, times: int = 100, minutes: int = 1):
-    """Simple in-memory rate limiting implementation"""
+    """Simple in-memory rate limiting"""
     client_ip = request.client.host
     current_window = datetime.now().replace(second=0, microsecond=0)
     window_key = f"{client_ip}:{current_window}"
 
     if window_key not in _rate_limit_storage:
-        _rate_limit_storage[window_key] = {
-            "count": 0,
-            "window_start": current_window
-        }
+        _rate_limit_storage[window_key] = {"count": 0, "window_start": current_window}
 
     _rate_limit_storage[window_key]["count"] += 1
 
     # Clean up old entries
     for key in list(_rate_limit_storage.keys()):
-        if _rate_limit_storage[key]["window_start"] < current_window - timedelta(minutes=5):
+        if _rate_limit_storage[key]["window_start"] < current_window - timedelta(
+            minutes=5
+        ):
             del _rate_limit_storage[key]
 
     if _rate_limit_storage[window_key]["count"] > times:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Rate limit exceeded: {times} requests per {minutes} minute(s)"
+            detail=f"Rate limit exceeded: {times} requests per {minutes} minute(s)",
         )
+
 
 async def initialize_components():
     """Initialize all application components."""
@@ -78,21 +76,17 @@ async def initialize_components():
         logger.info("Initializing application components...")
         app_start_time = time.time()
 
-        # Initialize metrics collector first
         metrics_collector = MetricsCollector()
         logger.info("Metrics collector initialized")
 
-        # Initialize model manager and load model
         model_manager = ModelManager()
         sentiment_analyzer = model_manager.load_model(settings.model_name)
         logger.info("Model loaded successfully")
 
-        # Warm up model
         warmup_samples = ["warmup", "test", "prediction"]
         _ = sentiment_analyzer.predict_batch(warmup_samples)
         logger.info("Model warmup completed")
 
-        # Initialize cache
         logger.debug(f"Redis URL from settings: {settings.redis_url}")
         cache = SentimentCache(redis_url=settings.redis_url)
         try:
@@ -108,6 +102,7 @@ async def initialize_components():
             logger.error(f"Cache connection failed: {str(e)}")
             logger.error(f"Exception type: {type(e)}")
             import traceback
+
             logger.error(f"Traceback: {traceback.format_exc()}")
             cache = None
 
@@ -116,6 +111,7 @@ async def initialize_components():
     except Exception as e:
         logger.error(f"Failed to initialize components: {str(e)}")
         raise
+
 
 async def cleanup_components():
     """Cleanup application components."""
@@ -133,6 +129,7 @@ async def cleanup_components():
     except Exception as e:
         logger.error(f"Error during cleanup: {str(e)}")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
@@ -142,17 +139,16 @@ async def lifespan(app: FastAPI):
     # Shutdown
     await cleanup_components()
 
-# Create FastAPI app
+
 app = FastAPI(
     title="Real-time Sentiment Analysis API",
     description="Production-ready sentiment analysis API with monitoring and caching",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
-# Add middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.getenv("ALLOWED_ORIGINS", "*").split(","),
@@ -162,34 +158,35 @@ app.add_middleware(
 )
 
 app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(",")
+    TrustedHostMiddleware, allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(",")
 )
 
-# Dependency functions
+
 async def get_sentiment_analyzer() -> SentimentAnalyzer:
     """Get sentiment analyzer instance."""
     if sentiment_analyzer is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Sentiment analyzer not initialized"
+            detail="Sentiment analyzer not initialized",
         )
     return sentiment_analyzer
+
 
 async def get_cache() -> SentimentCache | None:
     """Get cache instance."""
     return cache
+
 
 async def get_metrics_collector() -> MetricsCollector:
     """Get metrics collector instance."""
     if metrics_collector is None:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Metrics collector not initialized"
+            detail="Metrics collector not initialized",
         )
     return metrics_collector
 
-# Exception handlers
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler."""
@@ -202,24 +199,24 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=ErrorResponse(
             error="Internal server error",
-            detail=str(exc) if app.debug else "An unexpected error occurred"
-        ).dict()
+            detail=str(exc) if app.debug else "An unexpected error occurred",
+        ).dict(),
     )
 
-# API Routes
+
 @app.post("/predict", response_model=SentimentResponse)
 async def predict_sentiment(
     request: Request,
     sentiment_request: SentimentRequest,
     analyzer: SentimentAnalyzer = Depends(get_sentiment_analyzer),
     cache_client: SentimentCache | None = Depends(get_cache),
-    metrics: MetricsCollector = Depends(get_metrics_collector)
+    metrics: MetricsCollector = Depends(get_metrics_collector),
 ):
     """
     Predict sentiment for a single text.
-    
+
     - **text**: The text to analyze (max 5000 characters)
-    
+
     Returns sentiment prediction with confidence score.
     """
     # Apply rate limiting
@@ -231,7 +228,7 @@ async def predict_sentiment(
     logger.info(f"Predict request started - Request ID: {request_id}")
 
     try:
-        # Check cache first
+        # Check cache
         cached_result = None
         if cache_client and cache_client.connected:
             cached_result = await cache_client.get(sentiment_request.text)
@@ -267,7 +264,7 @@ async def predict_sentiment(
             confidence=result.get("confidence", result["score"]),
             processing_time=processing_time,
             cached=cached,
-            request_id=request_id
+            request_id=request_id,
         )
 
         return response
@@ -277,8 +274,9 @@ async def predict_sentiment(
         metrics.increment_error_count()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing sentiment analysis: {str(e)}"
+            detail=f"Error processing sentiment analysis: {str(e)}",
         )
+
 
 @app.post("/batch_predict", response_model=BatchSentimentResponse)
 async def batch_predict_sentiment(
@@ -286,16 +284,16 @@ async def batch_predict_sentiment(
     batch_request: BatchSentimentRequest,
     analyzer: SentimentAnalyzer = Depends(get_sentiment_analyzer),
     cache_client: SentimentCache | None = Depends(get_cache),
-    metrics: MetricsCollector = Depends(get_metrics_collector)
+    metrics: MetricsCollector = Depends(get_metrics_collector),
 ):
     """
     Predict sentiment for multiple texts.
-    
+
     - **texts**: List of texts to analyze (max 100 texts, each max 5000 characters)
-    
+
     Returns batch sentiment predictions with confidence scores.
     """
-    # Apply rate limiting (more strict for batch)
+    # Apply rate limiting that is more aggresive for batch
     await check_rate_limit(request, times=10, minutes=1)
 
     start_time = time.time()
@@ -308,7 +306,7 @@ async def batch_predict_sentiment(
         if len(batch_request.texts) > settings.batch_size:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Maximum batch size is {settings.batch_size}"
+                detail=f"Maximum batch size is {settings.batch_size}",
             )
 
         # Check cache for all texts
@@ -317,7 +315,9 @@ async def batch_predict_sentiment(
 
         if cache_client and cache_client.connected:
             cached_results = await cache_client.get_batch(batch_request.texts)
-            texts_to_predict = [text for text in batch_request.texts if cached_results.get(text) is None]
+            texts_to_predict = [
+                text for text in batch_request.texts if cached_results.get(text) is None
+            ]
         else:
             texts_to_predict = batch_request.texts
 
@@ -344,15 +344,17 @@ async def batch_predict_sentiment(
                 result = new_results[text]
                 logger.debug(f"Cache miss for text: {text[:50]}...")
 
-            all_results.append(SentimentResponse(
-                text=text,
-                label=result["label"],
-                score=result["score"],
-                confidence=result.get("confidence", result["score"]),
-                processing_time=0,  # Individual timing not available in batch
-                cached=text in cached_results and cached_results[text] is not None,
-                request_id=request_id
-            ))
+            all_results.append(
+                SentimentResponse(
+                    text=text,
+                    label=result["label"],
+                    score=result["score"],
+                    confidence=result.get("confidence", result["score"]),
+                    processing_time=0,  # Individual timing not available in batch
+                    cached=text in cached_results and cached_results[text] is not None,
+                    request_id=request_id,
+                )
+            )
 
         processing_time = time.time() - start_time
 
@@ -368,7 +370,7 @@ async def batch_predict_sentiment(
             total_count=len(batch_request.texts),
             processing_time=processing_time,
             cached_count=cached_count,
-            request_id=request_id
+            request_id=request_id,
         )
 
         return response
@@ -376,12 +378,15 @@ async def batch_predict_sentiment(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error in batch_predict_sentiment: {str(e)} - Request ID: {request_id}")
+        logger.error(
+            f"Error in batch_predict_sentiment: {str(e)} - Request ID: {request_id}"
+        )
         metrics.increment_error_count()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing batch sentiment analysis: {str(e)}"
+            detail=f"Error processing batch sentiment analysis: {str(e)}",
         )
+
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -390,18 +395,15 @@ async def health_check():
         status_info = {
             "status": "healthy",
             "uptime": time.time() - app_start_time,
-            "version": "1.0.0"
+            "version": "1.0.0",
         }
 
         # Model status
-        model_status = {
-            "loaded": sentiment_analyzer is not None,
-            "info": {}
-        }
+        model_status = {"loaded": sentiment_analyzer is not None, "info": {}}
         if sentiment_analyzer:
             model_status["info"] = {
                 "model_name": getattr(sentiment_analyzer, "model_name", "unknown"),
-                "device": str(getattr(sentiment_analyzer, "device", "unknown"))
+                "device": str(getattr(sentiment_analyzer, "device", "unknown")),
             }
         status_info["model"] = model_status
 
@@ -410,7 +412,9 @@ async def health_check():
         if cache:
             try:
                 logger.debug(f"Cache object exists: {cache}")
-                logger.debug(f"Cache connected attribute: {getattr(cache, 'connected', 'NOT_FOUND')}")
+                logger.debug(
+                    f"Cache connected attribute: {getattr(cache, 'connected', 'NOT_FOUND')}"
+                )
                 logger.debug("About to call cache.health_check()")
                 cache_health = await cache.health_check()
                 logger.debug(f"Cache health_check returned: {cache_health}")
@@ -421,19 +425,15 @@ async def health_check():
                 logger.error(f"Exception in cache health check: {str(e)}")
                 logger.error(f"Exception type: {type(e)}")
                 import traceback
+
                 logger.error(f"Traceback: {traceback.format_exc()}")
-                cache_status = {
-                    "connected": False,
-                    "error": str(e)
-                }
+                cache_status = {"connected": False, "error": str(e)}
         else:
             logger.debug("Cache object is None")
         status_info["cache"] = cache_status
 
         # Metrics status
-        status_info["metrics"] = {
-            "available": metrics_collector is not None
-        }
+        status_info["metrics"] = {"available": metrics_collector is not None}
 
         return HealthResponse(**status_info)
 
@@ -444,19 +444,19 @@ async def health_check():
             content={
                 "status": "unhealthy",
                 "error": "Service unavailable",
-                "detail": str(e)
-            }
+                "detail": str(e),
+            },
         )
 
 
 @app.get("/metrics")
 async def get_metrics(
     metrics: MetricsCollector = Depends(get_metrics_collector),
-    cache_client: SentimentCache | None = Depends(get_cache)
+    cache_client: SentimentCache | None = Depends(get_cache),
 ):
     """
     Get application metrics.
-    
+
     Returns various application metrics including cache statistics.
     """
     try:
@@ -476,7 +476,7 @@ async def get_metrics(
         logger.error(f"Error getting metrics: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving metrics: {str(e)}"
+            detail=f"Error retrieving metrics: {str(e)}",
         )
 
 
@@ -488,8 +488,9 @@ async def root():
         "version": "1.0.0",
         "docs": "/docs",
         "health": "/health",
-        "metrics": "/metrics"
+        "metrics": "/metrics",
     }
+
 
 def main():
     """Run the FastAPI application."""
@@ -499,8 +500,9 @@ def main():
         port=8000,
         reload=False,
         log_level="info",
-        server_header=False
+        server_header=False,
     )
+
 
 if __name__ == "__main__":
     main()

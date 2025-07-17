@@ -37,7 +37,7 @@ class MetricsCollector:
         # Response time tracking
         self.request_durations = []
         self.max_request_duration = 0.0
-        self.min_request_duration = float('inf')
+        self.min_request_duration = float("inf")
         self.total_request_duration = 0.0
 
         # Prometheus metrics
@@ -50,66 +50,60 @@ class MetricsCollector:
         """Setup Prometheus metrics."""
         # Counters
         self.prom_requests_total = Counter(
-            'sentiment_api_requests_total',
-            'Total number of API requests',
-            ['endpoint', 'method', 'status']
+            "sentiment_api_requests_total",
+            "Total number of API requests",
+            ["endpoint", "method", "status"],
         )
 
         self.prom_predictions_total = Counter(
-            'sentiment_api_predictions_total',
-            'Total number of sentiment predictions',
-            ['type']  # single or batch
+            "sentiment_api_predictions_total",
+            "Total number of sentiment predictions",
+            ["type"],  # single or batch
         )
 
         self.prom_cache_operations_total = Counter(
-            'sentiment_api_cache_operations_total',
-            'Total number of cache operations',
-            ['operation']  # hit or miss
+            "sentiment_api_cache_operations_total",
+            "Total number of cache operations",
+            ["operation"],  # hit or miss
         )
 
         self.prom_errors_total = Counter(
-            'sentiment_api_errors_total',
-            'Total number of errors',
-            ['type']
+            "sentiment_api_errors_total", "Total number of errors", ["type"]
         )
 
         # Histograms
         self.prom_request_duration = Histogram(
-            'sentiment_api_request_duration_seconds',
-            'Request duration in seconds',
-            ['endpoint'],
-            buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+            "sentiment_api_request_duration_seconds",
+            "Request duration in seconds",
+            ["endpoint"],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0],
         )
 
         # Gauges
         self.prom_active_requests = Gauge(
-            'sentiment_api_active_requests',
-            'Number of active requests'
+            "sentiment_api_active_requests", "Number of active requests"
         )
 
         self.prom_cache_hit_ratio = Gauge(
-            'sentiment_api_cache_hit_ratio',
-            'Cache hit ratio'
+            "sentiment_api_cache_hit_ratio", "Cache hit ratio"
         )
 
         self.prom_model_loaded = Gauge(
-            'sentiment_api_model_loaded',
-            'Whether the model is loaded (1) or not (0)'
+            "sentiment_api_model_loaded", "Whether the model is loaded (1) or not (0)"
         )
 
     def record_model_latency(self, latency: float):
         """Record model prediction latency in seconds."""
         with self._lock:
-            # You could add this to your Prometheus metrics if needed
-            # For now we'll just track it internally
-            if not hasattr(self, 'model_latencies'):
+            # Only tracking this internally for now
+            if not hasattr(self, "model_latencies"):
                 self.model_latencies = []
             self.model_latencies.append(latency)
 
-            # Track min/max/avg model latency
-            if not hasattr(self, 'max_model_latency'):
+            # Track model latency
+            if not hasattr(self, "max_model_latency"):
                 self.max_model_latency = 0.0
-                self.min_model_latency = float('inf')
+                self.min_model_latency = float("inf")
                 self.total_model_latency = 0.0
 
             if latency > self.max_model_latency:
@@ -133,7 +127,7 @@ class MetricsCollector:
             if duration < self.min_request_duration:
                 self.min_request_duration = duration
 
-            # Update Prometheus metrics
+            # Update metrics
             self.prom_request_duration.labels(endpoint=endpoint).observe(duration)
 
     def increment_prediction_count(self):
@@ -178,22 +172,19 @@ class MetricsCollector:
     def get_metrics(self) -> dict[str, Any]:
         """Get current metrics."""
         with self._lock:
-            # Calculate averages
             avg_request_duration = 0.0
             if self.request_count > 0:
                 avg_request_duration = self.total_request_duration / self.request_count
 
             avg_model_latency = 0.0
-            if hasattr(self, 'model_latencies') and self.model_latencies:
+            if hasattr(self, "model_latencies") and self.model_latencies:
                 avg_model_latency = self.total_model_latency / len(self.model_latencies)
 
-            # Calculate cache hit ratio
             cache_hit_ratio = 0.0
             total_cache_operations = self.cache_hit_count + self.cache_miss_count
             if total_cache_operations > 0:
                 cache_hit_ratio = self.cache_hit_count / total_cache_operations
 
-            # Calculate uptime
             uptime = time.time() - self.start_time
 
             return {
@@ -201,31 +192,33 @@ class MetricsCollector:
                     "total": self.request_count,
                     "predictions": self.prediction_count,
                     "batch_predictions": self.batch_prediction_count,
-                    "errors": self.error_count
+                    "errors": self.error_count,
                 },
                 "performance": {
                     "avg_request_duration": avg_request_duration,
                     "max_request_duration": self.max_request_duration,
-                    "min_request_duration": self.min_request_duration if self.min_request_duration != float('inf') else 0.0,
+                    "min_request_duration": self.min_request_duration
+                    if self.min_request_duration != float("inf")
+                    else 0.0,
                     "total_request_duration": self.total_request_duration,
                     "model_latency": {
                         "avg": avg_model_latency,
-                        "max": getattr(self, 'max_model_latency', 0.0),
-                        "min": getattr(self, 'min_model_latency', 0.0),
-                        "total": getattr(self, 'total_model_latency', 0.0),
-                        "count": len(getattr(self, 'model_latencies', []))
-                    }
+                        "max": getattr(self, "max_model_latency", 0.0),
+                        "min": getattr(self, "min_model_latency", 0.0),
+                        "total": getattr(self, "total_model_latency", 0.0),
+                        "count": len(getattr(self, "model_latencies", [])),
+                    },
                 },
                 "cache": {
                     "hits": self.cache_hit_count,
                     "misses": self.cache_miss_count,
                     "hit_ratio": cache_hit_ratio,
-                    "total_operations": total_cache_operations
+                    "total_operations": total_cache_operations,
                 },
                 "system": {
                     "uptime": uptime,
-                    "start_time": datetime.fromtimestamp(self.start_time).isoformat()
-                }
+                    "start_time": datetime.fromtimestamp(self.start_time).isoformat(),
+                },
             }
 
     def get_prometheus_metrics(self) -> str:
@@ -251,14 +244,14 @@ class MetricsCollector:
             self.error_count = 0
             self.request_durations = []
             self.max_request_duration = 0.0
-            self.min_request_duration = float('inf')
+            self.min_request_duration = float("inf")
             self.total_request_duration = 0.0
 
-            # Reset model latency metrics
-            if hasattr(self, 'model_latencies'):
+            # Reset latency metrics
+            if hasattr(self, "model_latencies"):
                 self.model_latencies = []
                 self.max_model_latency = 0.0
-                self.min_model_latency = float('inf')
+                self.min_model_latency = float("inf")
                 self.total_model_latency = 0.0
 
             self.start_time = time.time()
@@ -279,10 +272,10 @@ class DataDriftDetector:
     def add_text(self, text: str):
         """Add text for drift detection."""
         with self._lock:
-            # Track text length
+            # text length
             self.text_lengths.append(len(text))
 
-            # Track character distribution
+            # character distribution
             char_counts = defaultdict(int)
             for char in text.lower():
                 char_counts[char] += 1
@@ -290,7 +283,9 @@ class DataDriftDetector:
             # Normalize by text length
             total_chars = len(text)
             if total_chars > 0:
-                char_freq = {char: count / total_chars for char, count in char_counts.items()}
+                char_freq = {
+                    char: count / total_chars for char, count in char_counts.items()
+                }
                 self.char_distributions.append(char_freq)
 
             # Keep only recent data
@@ -306,7 +301,7 @@ class DataDriftDetector:
                     "length_drift": 0.0,
                     "char_drift": 0.0,
                     "overall_drift": 0.0,
-                    "sample_size": len(self.text_lengths)
+                    "sample_size": len(self.text_lengths),
                 }
 
             # Initialize baseline if not set
@@ -317,11 +312,15 @@ class DataDriftDetector:
             current_avg_length = sum(self.text_lengths) / len(self.text_lengths)
             current_length_std = 0.0
             if len(self.text_lengths) > 1:
-                variance = sum((x - current_avg_length) ** 2 for x in self.text_lengths) / (len(self.text_lengths) - 1)
-                current_length_std = variance ** 0.5
+                variance = sum(
+                    (x - current_avg_length) ** 2 for x in self.text_lengths
+                ) / (len(self.text_lengths) - 1)
+                current_length_std = variance**0.5
 
             # Length drift score
-            length_drift = abs(current_avg_length - self.baseline_stats["avg_length"]) / max(self.baseline_stats["length_std"], 1.0)
+            length_drift = abs(
+                current_avg_length - self.baseline_stats["avg_length"]
+            ) / max(self.baseline_stats["length_std"], 1.0)
 
             # Character distribution drift (simplified)
             char_drift = 0.0
@@ -330,13 +329,13 @@ class DataDriftDetector:
                 recent_dist = self.char_distributions[-1]
                 baseline_dist = self.baseline_stats["char_dist"]
 
-                # Calculate KL divergence (simplified)
+                # Calculate KL divergence
                 common_chars = set(recent_dist.keys()) & set(baseline_dist.keys())
                 if common_chars:
                     kl_div = 0.0
                     for char in common_chars:
                         p = recent_dist[char]
-                        q = baseline_dist.get(char, 0.001)  # Small epsilon to avoid division by zero
+                        q = baseline_dist.get(char, 0.001)  # Avoid div by zero
                         if p > 0 and q > 0:
                             kl_div += p * (p / q)
                     char_drift = kl_div
@@ -350,7 +349,7 @@ class DataDriftDetector:
                 "overall_drift": overall_drift,
                 "sample_size": len(self.text_lengths),
                 "current_avg_length": current_avg_length,
-                "baseline_avg_length": self.baseline_stats["avg_length"]
+                "baseline_avg_length": self.baseline_stats["avg_length"],
             }
 
     def set_baseline(self):
@@ -363,8 +362,10 @@ class DataDriftDetector:
             avg_length = sum(self.text_lengths) / len(self.text_lengths)
             length_std = 0.0
             if len(self.text_lengths) > 1:
-                variance = sum((x - avg_length) ** 2 for x in self.text_lengths) / (len(self.text_lengths) - 1)
-                length_std = variance ** 0.5
+                variance = sum((x - avg_length) ** 2 for x in self.text_lengths) / (
+                    len(self.text_lengths) - 1
+                )
+                length_std = variance**0.5
 
             # Average character distribution
             char_dist = defaultdict(float)
@@ -379,8 +380,8 @@ class DataDriftDetector:
 
             self.baseline_stats = {
                 "avg_length": avg_length,
-                "length_std": max(length_std, 1.0),  # Avoid division by zero
-                "char_dist": dict(char_dist)
+                "length_std": max(length_std, 1.0),  # Avoid div by zero
+                "char_dist": dict(char_dist),
             }
 
     def get_stats(self) -> dict[str, Any]:
@@ -390,5 +391,5 @@ class DataDriftDetector:
                 "window_size": self.window_size,
                 "current_sample_size": len(self.text_lengths),
                 "baseline_set": self.baseline_stats is not None,
-                "drift_scores": self.calculate_drift_score()
+                "drift_scores": self.calculate_drift_score(),
             }

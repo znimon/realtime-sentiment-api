@@ -5,9 +5,9 @@ build-backend = "hatchling.build"
 [project]
 name = "realtime-sentiment-api"
 version = "0.1.0"
-description = "Production-ready sentiment analysis API with monitoring and MLOps practices"
+description = "Sentiment analysis API with monitoring"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Zechariah Nimon", email = "znimon@gmail.com"},
 ]
 readme = "README.md"
 requires-python = ">=3.11"
@@ -40,7 +40,7 @@ dependencies = [
     "prometheus-client>=0.16.0",
     "python-json-logger>=2.0.0",
     
-    # Utilities
+    # Utils
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
     "numpy>=1.24.0",
@@ -61,9 +61,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/realtime-sentiment-api"
-Repository = "https://github.com/yourusername/realtime-sentiment-api"
-Issues = "https://github.com/yourusername/realtime-sentiment-api/issues"
+Homepage = "https://github.com/znimon/realtime-sentiment-api"
+Repository = "https://github.com/znimon/realtime-sentiment-api"
+Issues = "https://github.com/znimon/realtime-sentiment-api/issues"
 
 [project.scripts]
 sentiment-api = "src.api.main:main"
@@ -82,7 +82,7 @@ select = [
     "N",  # pep8-naming
 ]
 ignore = [
-    "E501",  # line too long, handled by black
+    "E501",  # line too long
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]

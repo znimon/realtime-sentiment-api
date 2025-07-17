@@ -20,8 +20,12 @@ class SentimentCache:
     """
 
     def __init__(self, redis_url: str = "redis://localhost:6379", ttl: int = 3600):
+        """
+        Args:
+            ttl: Time to live in seconds
+        """
         self.redis_url = redis_url
-        self.ttl = ttl  # Time to live in seconds
+        self.ttl = ttl
         self.redis: Redis | None = None
         self.connected = False
 
@@ -42,8 +46,6 @@ class SentimentCache:
                 retry_on_error=[],
             )
             logger.debug("Redis client created successfully")
-
-            # Test connection
             logger.debug("About to ping Redis")
             ping_result = await self.redis.ping()
             logger.debug(f"Redis ping result: {ping_result}")
@@ -134,7 +136,7 @@ class SentimentCache:
             cached_result = {
                 **result,
                 "cached_at": datetime.utcnow().isoformat(),
-                "text": text,  # Store original text for debugging
+                "text": text,
             }
 
             await self.redis.setex(
